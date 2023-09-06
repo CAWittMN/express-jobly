@@ -14,7 +14,6 @@ const companyUpdateSchema = require("../schemas/companyUpdate.json");
 
 const router = new express.Router();
 
-
 /** POST / { company } =>  { company }
  *
  * company should be { handle, name, description, numEmployees, logoUrl }
@@ -28,7 +27,7 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
   try {
     const validator = jsonschema.validate(req.body, companyNewSchema);
     if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
+      const errs = validator.errors.map((e) => e.stack);
       throw new BadRequestError(errs);
     }
 
@@ -45,12 +44,49 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
  * Can filter on provided search filters:
  * - minEmployees
  * - maxEmployees
- * - nameLike (will find case-insensitive, partial matches)
+ * - name (will find case-insensitive, partial matches)
+ *
+ * When filtering min/max, both must be provided. Otherwise throws BadRequestError.
+ *
+ * If no filter is provided, returns all companies.
+ * If any filter other than the ones listed above are used, throws BadRequestError.
  *
  * Authorization required: none
  */
 
 router.get("/", async function (req, res, next) {
+  if (req.query) {
+    const filter = req.query;
+    if (filter.minEmployees && filter.maxEmployees && filter.length === 2) {
+      try {
+        const companies = await Company.filterByMinMax(filter);
+        return res.json({ companies });
+      } catch (err) {
+        return next(err);
+      }
+    } else if (filter.name && filter.length === 1) {
+      try {
+        const companies = await Company.filterByName(filter);
+        return res.json({ companies });
+      } catch (err) {
+        return next(err);
+      }
+    } else if (
+      filter.minEmployees &&
+      filter.maxEmployees &&
+      filter.name &&
+      filter.length === 3
+    ) {
+      try {
+        const companies = await Company.filterByMinMaxName(filter);
+        return res.json({ companies });
+      } catch (err) {
+        return next(err);
+      }
+    }
+
+    throw new BadRequestError("Invalid query string");
+  }
   try {
     const companies = await Company.findAll();
     return res.json({ companies });
@@ -91,7 +127,7 @@ router.patch("/:handle", ensureLoggedIn, async function (req, res, next) {
   try {
     const validator = jsonschema.validate(req.body, companyUpdateSchema);
     if (!validator.valid) {
-      const errs = validator.errors.map(e => e.stack);
+      const errs = validator.errors.map((e) => e.stack);
       throw new BadRequestError(errs);
     }
 
@@ -115,6 +151,5 @@ router.delete("/:handle", ensureLoggedIn, async function (req, res, next) {
     return next(err);
   }
 });
-
 
 module.exports = router;
