@@ -63,11 +63,9 @@ function ensureAdmin(req, res, next) {
 
 function ensureCorrectUser(req, res, next) {
   try {
-    if (
-      !res.locals.user ||
-      res.locals.user.username !== req.params.username ||
-      !res.locals.user.isAdmin
-    )
+    if (!res.locals.user) throw new UnauthorizedError();
+    else if (res.locals.user.isAdmin) return next();
+    else if (res.locals.user.username !== req.params.username)
       throw new UnauthorizedError();
     return next();
   } catch (err) {

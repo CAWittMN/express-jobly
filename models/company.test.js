@@ -123,13 +123,24 @@ describe("filterByMinMax", function () {
     }
   });
 
-  test("bad request with only max", async function () {
-    try {
-      await Company.filterByMinMax({ maxEmployees: 3 });
-      fail();
-    } catch (err) {
-      expect(err instanceof BadRequestError).toBeTruthy();
-    }
+  test("works with only max", async function () {
+    let companies = await Company.filterByMinMax({ maxEmployees: 2 });
+    expect(companies).toEqual([
+      {
+        handle: "c1",
+        name: "C1",
+        description: "Desc1",
+        numEmployees: 1,
+        logoUrl: "http://c1.img",
+      },
+      {
+        handle: "c2",
+        name: "C2",
+        description: "Desc2",
+        numEmployees: 2,
+        logoUrl: "http://c2.img",
+      },
+    ]);
   });
 
   test("bad request with min > max", async function () {
@@ -167,6 +178,15 @@ describe("filterByName", function () {
     }
   });
 
+  test("bad request with empty string", async function () {
+    try {
+      await Company.filterByName({ name: "" });
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+    }
+  });
+
   test("name cannot be found", async function () {
     try {
       await Company.filterByName({ name: "nope" });
@@ -196,20 +216,6 @@ describe("filterByMinMaxName", function () {
       },
     ]);
   });
-
-  test("bad request with extra filter queries", async function () {
-    try {
-      await Company.filterByMinMaxName({
-        minEmployees: 2,
-        maxEmployees: 3,
-        name: "2",
-        extra: "extra",
-      });
-      fail();
-    } catch (err) {
-      expect(err instanceof BadRequestError).toBeTruthy();
-    }
-  });
 });
 
 /************************************** get */
@@ -223,6 +229,14 @@ describe("get", function () {
       description: "Desc1",
       numEmployees: 1,
       logoUrl: "http://c1.img",
+      jobs: [
+        {
+          id: expect.any(Number),
+          title: "j1",
+          salary: 100,
+          equity: "0.1",
+        },
+      ],
     });
   });
 

@@ -63,7 +63,10 @@ class Company {
    * */
 
   static async filterByMinMax(filter) {
-    const { minEmployees, maxEmployees } = filter;
+    let { minEmployees, maxEmployees } = filter;
+    if (minEmployees === undefined) minEmployees = 0;
+    if (maxEmployees === undefined)
+      throw new BadRequestError("Max employees must be provided");
     if (minEmployees > maxEmployees) {
       throw new BadRequestError(
         "Min employees cannot be greater than max employees"
@@ -80,6 +83,10 @@ class Company {
             ORDER BY name`,
       [minEmployees, maxEmployees]
     );
+    if (companiesRes.rows.length === 0)
+      throw new NotFoundError(
+        `No companies found with employees between ${minEmployees} and ${maxEmployees}`
+      );
     return companiesRes.rows;
   }
 
@@ -90,6 +97,8 @@ class Company {
 
   static async filterByName(filter) {
     const { name } = filter;
+    if (name === undefined) throw new BadRequestError("Name must be provided");
+    if (name == "") throw new BadRequestError("Name must be provided");
     const companiesRes = await db.query(
       `SELECT handle,
                   name,
@@ -101,6 +110,8 @@ class Company {
             ORDER BY name`,
       [`%${name}%`]
     );
+    if (companiesRes.rows.length === 0)
+      throw new NotFoundError(`No companies found with name: ${name}`);
     return companiesRes.rows;
   }
 
@@ -127,13 +138,17 @@ class Company {
             ORDER BY name`,
       [minEmployees, maxEmployees, `%${name}%`]
     );
+    if (companiesRes.rows.length === 0)
+      throw new NotFoundError(
+        `No companies found with name: ${name} and employees between ${minEmployees} and ${maxEmployees}`
+      );
     return companiesRes.rows;
   }
 
   /** Given a company handle, return data about company.
    *
    * Returns { handle, name, description, numEmployees, logoUrl, jobs }
-   *   where jobs is [{ id, title, salary, equity, companyHandle }, ...]
+   *   where jobs is [{ id, title, salary, equity }, ...]
    *
    * Throws NotFoundError if not found.
    **/
@@ -153,6 +168,15 @@ class Company {
     const company = companyRes.rows[0];
 
     if (!company) throw new NotFoundError(`No company: ${handle}`);
+
+    const jobsRes = await db.query(
+      `SELECT id, title, salary, equity
+            FROM jobs
+            WHERE company_handle = $1`,
+      [handle]
+    );
+
+    company.jobs = jobsRes.rows;
 
     return company;
   }
